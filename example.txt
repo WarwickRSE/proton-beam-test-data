@@ -1,0 +1,67 @@
+Energies 200, 150, 100, 75, 40, 
+----------------------------
+Bethe-Bloch for Hydrogen only (I for water)
+std::vector<double> ref_loss{8.03257, 9.73673, 13.0366, 16.2122, 26.6287};
+Bethe-Bloch for Oxygen only (I for water)
+std::vector<double> ref_loss{4.04867, 4.90762, 6.57085, 8.17145, 13.4217};
+Bethe-Bloch for Carbon only (I 85)
+std::vector<double> ref_loss{3.98478, 4.82798, 6.45965, 8.02871, 13.1688};
+----------------------------
+Energy Straggling for Hydrogen only
+std::vector<double> ref_strag{0.438768, 0.427397, 0.416248, 0.410761, 0.403185};
+Energy Straggling for Oxygen only
+std::vector<double> ref_strag{0.311504, 0.303432, 0.295516, 0.291621, 0.286242};
+Energy Straggling for Carbon only
+std::vector<double> ref_strag{0.311352, 0.303283, 0.295371, 0.291478, 0.286102};
+----------------------------
+Elastic Loss for Hydrogen only
+std::vector<double> ref_el{0.0973714, 0.0973714, 0.120665, 0.105572, 0.196619};
+Elastic Loss for Oxygen only
+std::vector<double> ref_el{0.00695712, 0.00695712, 0.0150926, 0.0256163, 0.0755137};
+Elastic Loss for Carbon only
+std::vector<double> ref_el{0.0135181, 0.0135181, 0.0288751, 0.0479608, 0.129389};
+----------------------------
+NonElastic Loss for Hydrogen only
+std::vector<double> ref_ne{0, 0, 0, 0, 0};
+NonElastic Loss for Oxygen only
+std::vector<double> ref_ne{0.011104, 0.011104, 0.0111793, 0.012158, 0.0169007};
+NonElastic Loss for Carbon only
+std::vector<double> ref_ne{0.0222966, 0.0222966, 0.0227629, 0.0269244, 0.0364004};
+----------------------------
+Small Angle SD for Hydrogen only
+std::vector<double> ref_sa{0.00394011, 0.00519039, 0.00771194, 0.0102573, 0.019297};
+Small Angle SD for Oxygen only
+std::vector<double> ref_sa{0.00579506, 0.00763454, 0.011343, 0.0150841, 0.0283483};
+Small Angle SD for Carbon only
+std::vector<double> ref_sa{0.00741039, 0.00975985, 0.0144957, 0.0192732, 0.036217};
+----------------------------
+Elastic Scattering Sampled Rates for Hydrogen
+Energies: 100, 73, 5.3, 1, 1, 160, 160, 150, 150, 
+Random Draws: 0.1, 0.1, 0.5, 0, 1, 0, 1, 0.1, 0.67, 
+std::vector<double> ref_el_ang{1.44996, 1.53925, 1.53162, 1.55071, 0.04, 1.54993, 0.04, 1.37805, 0.540784};
+Elastic Scattering Sampled Rates for Oxygen
+Energies: 100, 73, 5.3, 1, 1, 160, 160, 150, 150, 
+Random Draws: 0.1, 0.1, 0.5, 0, 1, 0, 1, 0.1, 0.67, 
+std::vector<double> ref_el_ang{0.328358, 0.374877, 0.0564652, 3.14159, 0.04, 3.14159, 0.04, 0.260273, 0.0592945};
+Elastic Scattering Sampled Rates for Carbon
+Energies: 100, 73, 5.3, 1, 1, 160, 160, 150, 150, 
+Random Draws: 0.1, 0.1, 0.5, 0, 1, 0, 1, 0.1, 0.67, 
+std::vector<double> ref_el_ang{0.349714, 0.395738, 0.0563128, 3.14159, 0.04, 3.14159, 0.04, 0.276185, 0.0763119};
+----------------------------
+Non Elastic Scattering Sampled Rates for Oxygen
+Energies: 100, 73, 5.3, 1, 1, 160, 160, 150, 150, 
+Random Draws: 0.1, 0.1, 0.5, 0, 1, 0, 1, 0.1, 0.67, 
+std::vector<std::vector<double>> ref_ne_ang{{0.155904, 1.77733}, {0.214461, 1.62208}, {0, 0}, {0, 0}, {0, 0.1}, {0.04473, 0}, {1, 126.528}, {0.106837, 1.68676}, {0.739901, 27.8417}};
+Non Elastic Scattering Sampled Rates for Carbon
+Energies: 100, 73, 5.3, 1, 1, 160, 160, 150, 150, 
+Random Draws: 0.1, 0.1, 0.5, 0, 1, 0, 1, 0.1, 0.67, 
+std::vector<std::vector<double>> ref_ne_ang{{0.171597, 1.40419}, {0.246883, 1.41405}, {0, 0.207567}, {0, 0}, {0, 0.1}, {0.04816, 0}, {1, 123.157}, {0.115362, 1.20864}, {0.925111, 38.1043}};
+----------------------------
+Non Elastic Scattering Full Rates for Oxygen
+Energies: 100, 73, 5.3, 1, 1, 160, 160, 150, 150, 
+Random Draws: 0.1, 0.1, 0.1, 0.1, 0.5, 0.5, 0, 0, 1, 1, 0, 0, 1, 1, 0.1, 0.1, 0.67, 0.67, 
+std::vector<std::vector<double>> ref_ne_ang_entire{{-0.505378, 0.875054}, {-0.545804, 0.860497}, {1, 0}, {1, 0}, {1, 0.140666}, {1, 0}, {1, 143.821}, {-0.375194, 0.711607}, {0.744059, 33.5311}};
+Non Elastic Scattering Full Rates for Carbon
+Energies: 100, 73, 5.3, 1, 1, 160, 160, 150, 150, 
+Random Draws: 0.1, 0.1, 0.1, 0.1, 0.5, 0.5, 0, 0, 1, 1, 0, 0, 1, 1, 0.1, 0.1, 0.67, 0.67, 
+std::vector<std::vector<double>> ref_ne_ang_entire{{-0.234352, 0.547033}, {-0.361884, 0.611241}, {0.362028, 0.238875}, {1, 0}, {1, 0.154516}, {1, 0}, {1, 145.68}, {0.0962637, 0.443222}, {0.83307, 48.0949}};
