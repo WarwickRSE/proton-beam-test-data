@@ -14,9 +14,9 @@ struct Atom {
 
   // Constructor for zero non-elastic rate for hydrogen
   Atom(const double a0, const int z0, const std::string el_ruth_cs,
-       const double cutoff, const double back_cutoff)
-      : a(a0), z(z0), el_ruth_rate(el_ruth_cs, cutoff, back_cutoff), ne_rate(),
-        el_ruth_angle_cdf(el_ruth_cs, cutoff, back_cutoff), ne_energy_angle() {}
+       const double cutoff)
+      : a(a0), z(z0), el_ruth_rate(el_ruth_cs, cutoff), ne_rate(),
+        el_ruth_angle_cdf(el_ruth_cs, cutoff), ne_energy_angle() {}
 
   Atom(const Atom &other)
       : a(other.a), z(other.z), el_ruth_rate(other.el_ruth_rate),
@@ -45,6 +45,13 @@ struct Atom {
                                    gsl_rng *gen) const {
     double out_rvalue, out_energy_cm;
     ne_energy_angle.sample(e, out_rvalue, out_energy_cm, gen);
+    if (out_energy_cm == 0) {
+      e = 0;
+      alpha = 1; // If outgoing energy is 0, then out_angle_lab should be 1,
+                 // rounding errors allow it to be slightly above 1 which is
+                 // invalid.
+      return;
+    }
     double eps_a = a * e / (a + 1);
     double eps_b = (a + 1) * out_energy_cm / a;
     double e_a = eps_a + s();
@@ -66,12 +73,6 @@ struct Atom {
                            sqrt(e / out_energy_lab) / (a + 1);
     e = out_energy_lab;
     alpha = out_angle_lab;
-    if (out_energy_cm == 0) {
-      e = 0;
-      alpha = 1; // If outgoing energy is 0, then out_angle_lab should be 1,
-                 // rounding errors allow it to be slightly above 1 which is
-                 // invalid.
-    }
   }
 
   const double a;
@@ -84,16 +85,19 @@ struct Atom {
 struct Material {
 
   Material(std::vector<Atom> &atoms, const std::vector<int> &id,
-           const std::vector<double> &x0, const double d0, const double I0)
-      : density(d0), I(I0 / 1e6), x(x0), at() {
+           const std::vector<double> &x0, const double d0, const double I0,
+           const double lynch_dahl_timestep0)
+      : density(d0), lynch_dahl_timestep(lynch_dahl_timestep0), I(I0 / 1e6),
+        x(x0), at() {
     for (unsigned int i = 0; i < id.size(); i++) {
       at.push_back(atoms[id[i]]);
     }
   }
 
-  Material() : density(), I(), x(), at() {}
+  Material() : density(), lynch_dahl_timestep(), I(), x(), at() {}
 
-  void read_material(const std::string filename, std::vector<Atom> &atoms) {
+  void read_material(const std::string filename, std::vector<Atom> &atoms,
+                     const double lynch_dahl_timestep0) {
     std::ifstream file;
     file.open(filename + ".txt");
     std::string line, token;
@@ -110,6 +114,7 @@ struct Material {
       x.push_back(atof(token.c_str()));
     }
     file.close();
+    lynch_dahl_timestep = lynch_dahl_timestep0;
     return;
   }
 
@@ -140,7 +145,7 @@ struct Material {
                         (1 + 3.34 * pow(at[i].z / (137 * sqrt(betasq)), 2)) /
                         (p * p);
     }
-    chi_c_sq *= 0.157 * dt * density / (pv * pv);
+    chi_c_sq *= 0.157 * lynch_dahl_timestep * density / (pv * pv);
     // effective chi_a_sq is a weighted average on the log-scale
     double chi_a_sq = 0;
     double denom = 0;
@@ -150,11 +155,12 @@ struct Material {
       denom += x[i] * at[i].z * (at[i].z + 1.0) / at[i].a;
     }
     chi_a_sq = exp(chi_a_sq / denom);
- 
     double omega = chi_c_sq / chi_a_sq;
     double F = 0.98;
     double v = omega / (2 * (1 - F));
-    double ret = sqrt(chi_c_sq * ((1 + v) * log(1 + v) / v - 1) / (1 + F * F));
+    double ret =
+        sqrt((chi_c_sq * ((1 + v) * log(1 + v) / v - 1) / (1 + F * F)) *
+             (dt / lynch_dahl_timestep));
     return ret;
   }
 
@@ -178,31 +184,28 @@ struct Material {
   }
 
   double nonelastic_rate(const double e) const {
-    //double log_avogadro = log(6) + 23 * log(10);
-    //double log_barns_to_cmsq = -24 * log(10);
-    double barn2avo = 6.02214e-1;
+    double log_avogadro = log(6.02214) + 23 * log(10);
+    double log_barns_to_cmsq = -24 * log(10);
     double ret = 0;
     for (unsigned int i = 0; i < at.size(); i++) {
-      ret += x[i] * at[i].ne_rate.evaluate(e)/at[i].a;
+      ret += x[i] * at[i].ne_rate.evaluate(e) / at[i].a;
     }
-    //double log_molecule_density =
-        log(density);// + log_avogadro; // molecules / cm^3
-    //ret *= exp(log_barns_to_cmsq + log_molecule_density);
-    ret *= density * barn2avo;
+    double log_molecule_density =
+        log(density) + log_avogadro; // molecules / cm^3
+    ret *= exp(log_barns_to_cmsq + log_molecule_density);
     return ret; // rate per cm
   }
 
   double rutherford_and_elastic_rate(const double e) const {
-    double barn2avo = 6.02214e-1;
+    double log_avogadro = log(6.02214) + 23 * log(10);
+    double log_barns_to_cmsq = -24 * log(10);
     double ret = 0;
-    
     for (unsigned int i = 0; i < at.size(); i++) {
-      ret += x[i] * at[i].el_ruth_rate.evaluate(e)/ at[i].a;
+      ret += x[i] * at[i].el_ruth_rate.evaluate(e) / at[i].a;
     }
-    //double log_molecule_density =
-    //    log(density) + log_avogadro; // molecules / cm^3
-    //ret *= exp(log_barns_to_cmsq + log_molecule_density);
-    ret *= density * barn2avo;
+    double log_molecule_density =
+        log(density) + log_avogadro; // molecules / cm^3
+    ret *= exp(log_barns_to_cmsq + log_molecule_density);
     return ret; // rate per cm
   }
 
@@ -234,14 +237,18 @@ struct Material {
     double beta = 2 * M_PI * gsl_rng_uniform(gen);
     double rate = 0;
     for (unsigned int i = 0; i < at.size(); i++) {
-      rate += x[i] * at[i].ne_rate.evaluate(e);
+      rate += x[i] * at[i].ne_rate.evaluate(e) / at[i].a;
+    }
+    if (rate <=0){
+      // energy and direction remain unchanged if no non-elastic scattering occurs
+      return; 
     }
     double u = gsl_rng_uniform(gen);
     double ind = 0;
-    double tmp = x[ind] * at[ind].ne_rate.evaluate(e) / rate;
+    double tmp = (x[ind] * at[ind].ne_rate.evaluate(e) / at[ind].a) / rate;
     while (tmp < u) {
       ind++;
-      tmp += x[ind] * at[ind].ne_rate.evaluate(e) / rate;
+      tmp += (x[ind] * at[ind].ne_rate.evaluate(e) / at[ind].a) / rate;
     }
     double alpha;
     // ENDF non-elastic scattering, both energy + angle from CM to LAB
@@ -250,29 +257,53 @@ struct Material {
     compute_new_angle(ang, alpha, beta);
     return;
   }
-
+  void cm_to_lab_energy(double alpha, double &e, double &s, int ind) const {
+    double mpcsq = 938.346;
+    double mtcsq = at[ind].a * mpcsq;
+    double E1 = mpcsq + e;
+    double p1 = std::sqrt(E1 * E1 - mpcsq * mpcsq);
+    double u = p1 / (E1 + mtcsq);
+    double invmass = std::sqrt(mpcsq * mpcsq + mtcsq * mtcsq + 2 * E1 * mtcsq);
+    double gamma_u = (E1 + mtcsq) / invmass;
+    double EC = (E1 * mtcsq + mpcsq * mpcsq) / invmass;
+    double TanL = tan(alpha);
+    double C1 = u / std::sqrt(1 - (mpcsq * mpcsq / (EC * EC)));
+    double CosCM = cos(acos(-(TanL * gamma_u * C1) /
+                            std::sqrt(TanL * TanL * gamma_u * gamma_u + 1)) -
+                       atan(1 / (TanL * gamma_u)));
+    double out_e =
+        gamma_u * (EC + u * std::sqrt(EC * EC - mpcsq * mpcsq) * CosCM) - mpcsq;
+    s += e - out_e;
+    e = out_e;
+    return;
+  }
   void rutherford_elastic_scatter(std::vector<double> &ang, double &e,
-                                  gsl_rng *gen) const {
+                                  double &s, gsl_rng *gen) const {
     double beta = 2 * M_PI * gsl_rng_uniform(gen);
     double rate = 0;
     for (unsigned int i = 0; i < at.size(); i++) {
-      rate += x[i] * at[i].el_ruth_rate.evaluate(e);
+      rate += x[i] * at[i].el_ruth_rate.evaluate(e) / at[i].a;
+    }
+    if (rate <= 0) {
+      // energy and direction remain unchanged if no Rutherford scattering occurs
+      return;
     }
     double u = gsl_rng_uniform(gen);
-    double ind = 0;
-    double tmp = x[ind] * at[ind].el_ruth_rate.evaluate(e) / rate;
+    int ind = 0;
+    double tmp = (x[ind] * at[ind].el_ruth_rate.evaluate(e) / at[ind].a) / rate;
     while (tmp < u) {
       ind++;
-      tmp += x[ind] * at[ind].el_ruth_rate.evaluate(e) / rate;
+      tmp += (x[ind] * at[ind].el_ruth_rate.evaluate(e) / at[ind].a) / rate;
     }
     double alpha;
     alpha = at[ind].el_ruth_angle_cdf.sample(e, gen);
+    cm_to_lab_energy(alpha, e, s, ind);
     compute_new_angle(ang, alpha, beta);
     return;
   }
 
-  double density; // density, g / cm^3
-  double I;       // mean excitation energy, MeV
+  double density, lynch_dahl_timestep; // density, g / cm^3
+  double I;                            // mean excitation energy, MeV
   std::vector<double> x;
   std::vector<Atom> at;
 };

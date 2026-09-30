@@ -55,7 +55,7 @@ struct CS_1d {
           tmp_count++;
           tmp_val_old = tmp_val;
         } else if (lin_inter_bool) {
-          lin_inter_val = (tmp_val - cuttoff) / (tmp_val - tmp_val_old);
+          lin_inter_val = (cuttoff - tmp_val_old) / (tmp_val - tmp_val_old);
           lin_inter_bool = false;
         }
       }
@@ -75,95 +75,9 @@ struct CS_1d {
           lin_inter_bool = false;
         }
       }
-    }
-    file.close();
-  }
-
-  double hydrogen_cm_to_lab(double ang, const double E) {
-    ang = M_PI - ang;
-    double mp = 938.346;
-    double p = sqrt(E * (E + 2 * mp));
-    double u = p / (E + 2 * mp);
-    double g = 1 / sqrt(1 - u * u);
-    double e = E + mp;
-    double v_ratio = u * (e - u * p) / (p - u * e);
-    double out;
-    if (fabs(g * (cos(ang) + v_ratio)) == 0) {
-      out = M_PI / 2;
-    } else {
-      out = atan(sin(ang) / (g * (cos(ang) + v_ratio)));
-    }
-    if (out < 0) {
-      out += M_PI;
-    }
-    return out;
-  }
-
-  CS_1d(const std::string filename, const double cuttoff,
-        const double back_cuttoff)
-      : energy(), rate() {
-    std::ifstream file;
-    file.open(filename);
-    std::string line, token;
-    getline(file, line);
-    std::stringstream iss;
-    iss << line;
-    while (getline(iss, token, ' ')) {
-      energy.push_back(atof(token.c_str()));
-    }
-    std::vector<double> tmp_vec;
-    double lab_ang_cutoff, tmp_val, tmp_val_old = 0, top_rate, bottom_rate,
-                                    total_rate, lin_inter_val = 0;
-    int tmp_count, tmp_count_2, tmp_count_back, tmp_count_back_2,
-        energy_index = 0;
-    bool lin_inter_bool;
-    while (getline(file, line)) {
-      lab_ang_cutoff = hydrogen_cm_to_lab(back_cuttoff, energy[energy_index]);
-      energy_index++;
-      tmp_count = 0;
-      tmp_count_back = 0;
-      lin_inter_bool = true;
-      std::stringstream iss2;
-      iss2 << line;
-      while (getline(iss2, token, ' ')) {
-        tmp_val = atof(token.c_str());
-        if (tmp_val > lab_ang_cutoff) {
-          tmp_count++;
-          tmp_count_back++;
-        } else if (tmp_val > cuttoff) {
-          tmp_count++;
-          tmp_val_old = tmp_val;
-        } else if (lin_inter_bool) {
-          lin_inter_val = (cuttoff - tmp_val_old) / (tmp_val - tmp_val_old);
-          lin_inter_bool = false;
-        }
+      if (lin_inter_bool) {
+        rate.push_back(tmp_val_old);
       }
-      tmp_count_2 = 0;
-      tmp_count_back_2 = 0;
-      lin_inter_bool = true;
-      getline(file, line);
-      tmp_vec.clear();
-      std::stringstream iss3;
-      iss3 << line;
-      while (getline(iss3, token, ' ')) {
-        tmp_val = atof(token.c_str());
-        if (tmp_count_back_2 < tmp_count_back) {
-          tmp_count_back_2++;
-          tmp_count_2++;
-        } else if (tmp_count_2 < tmp_count) {
-          tmp_count_2++;
-          tmp_vec.push_back(tmp_val);
-          tmp_val_old = tmp_val;
-        } else if (lin_inter_bool) {
-          tmp_vec.push_back(tmp_val * lin_inter_val +
-                            (1 - lin_inter_val) * tmp_val_old);
-          lin_inter_bool = false;
-        }
-      }
-      top_rate = tmp_vec.back();
-      bottom_rate = tmp_vec.front();
-      total_rate = top_rate - bottom_rate;
-      rate.push_back(total_rate);
     }
     file.close();
   }
@@ -246,7 +160,7 @@ struct CS_3d {
 
   CS_3d() : energy(), exit_energy(), cdf(), rvalue() {}
 
-  void sample_from_energy_index(const double energy_index, const double u,
+  void sample_from_energy_index(const int energy_index, const double u,
                                 double &out_energy_cm,
                                 double &out_rvalue) const {
     double diff = 0;
@@ -372,102 +286,6 @@ struct CS_2d {
       total_rate = tmp_vec.back();
       for (double &i : tmp_vec) {
         i /= total_rate;
-      }
-      cdf.push_back(tmp_vec);
-    }
-    file.close();
-  }
-
-  double hydrogen_cm_to_lab(double ang, const double E) {
-    ang = M_PI - ang;
-    double mp = 938.346;
-    double p = sqrt(E * (E + 2 * mp));
-    double u = p / (E + 2 * mp);
-    double g = 1 / sqrt(1 - u * u);
-    double e = E + mp;
-    double v_ratio = u * (e - u * p) / (p - u * e);
-    double out;
-    if (fabs(g * (cos(ang) + v_ratio)) == 0) {
-      out = M_PI / 2;
-    } else {
-      out = atan(sin(ang) / (g * (cos(ang) + v_ratio)));
-    }
-    if (out < 0) {
-      out += M_PI;
-    }
-    return out;
-  }
-
-  CS_2d(const std::string filename, const double cuttoff,
-        const double back_cuttoff)
-      : energy(), exit_angle(), cdf() {
-    std::ifstream file;
-    file.open(filename);
-    std::string line, token;
-    getline(file, line);
-    std::stringstream iss;
-    iss << line;
-    while (getline(iss, token, ' ')) {
-      energy.push_back(atof(token.c_str()));
-    }
-    std::vector<double> tmp_vec;
-    double lab_ang_cutoff, tmp_val, tmp_val_old = 0, top_rate, bottom_rate,
-                                    total_rate, lin_inter_val = 0;
-    int tmp_count, tmp_count_2, tmp_count_back, tmp_count_back_2,
-        energy_index = 0;
-    bool lin_inter_bool;
-    while (getline(file, line)) {
-      lab_ang_cutoff = hydrogen_cm_to_lab(back_cuttoff, energy[energy_index]);
-      energy_index++;
-      tmp_vec.clear();
-      tmp_count = 0;
-      tmp_count_back = 0;
-      lin_inter_bool = true;
-      std::stringstream iss2;
-      iss2 << line;
-      while (getline(iss2, token, ' ')) {
-        tmp_val = atof(token.c_str());
-        if (tmp_val > lab_ang_cutoff) {
-          tmp_count++;
-          tmp_count_back++;
-        } else if (tmp_val > cuttoff) {
-          tmp_count++;
-          tmp_vec.push_back(tmp_val);
-          tmp_val_old = tmp_val;
-        } else if (lin_inter_bool) {
-          lin_inter_val = (cuttoff - tmp_val_old) / (tmp_val - tmp_val_old);
-          lin_inter_bool = false;
-          tmp_vec.push_back(cuttoff);
-        }
-      }
-      exit_angle.push_back(tmp_vec);
-      tmp_count_2 = 0;
-      tmp_count_back_2 = 0;
-      lin_inter_bool = true;
-      getline(file, line);
-      tmp_vec.clear();
-      std::stringstream iss3;
-      iss3 << line;
-      while (getline(iss3, token, ' ')) {
-        tmp_val = atof(token.c_str());
-        if (tmp_count_back_2 < tmp_count_back) {
-          tmp_count_back_2++;
-          tmp_count_2++;
-        } else if (tmp_count_2 < tmp_count) {
-          tmp_count_2++;
-          tmp_vec.push_back(tmp_val);
-          tmp_val_old = tmp_val;
-        } else if (lin_inter_bool) {
-          tmp_vec.push_back(tmp_val * lin_inter_val +
-                            (1 - lin_inter_val) * tmp_val_old);
-          lin_inter_bool = false;
-        }
-      }
-      top_rate = tmp_vec.back();
-      bottom_rate = tmp_vec.front();
-      total_rate = top_rate - bottom_rate;
-      for (double &i : tmp_vec) {
-        i = (i - bottom_rate) / total_rate;
       }
       cdf.push_back(tmp_vec);
     }
